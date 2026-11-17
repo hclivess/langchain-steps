@@ -117,6 +117,6 @@ not been run with a real key; the offline path is what the tests cover.
 They exist so the chain can be seen working anywhere. Built with LangChain 1.5
 and langchain-core 1.8.
 
-See also: [rag-sqlite](https://github.com/hclivess/rag-sqlite), the same idea without any framework.
+See also: [rag-steps](https://github.com/hclivess/rag-steps), the same idea without any framework.
 
 MIT licence.
