@@ -4,7 +4,13 @@ A small LangChain RAG chain you can **watch**. One local page with start buttons
 every component (loader, splitter, embeddings, vector store, retriever, prompt,
 chat model, output parser) shows what it received and what it returned.
 
+![The web interface running: the index is built, then the chain answers a question](demo.webp)
+
+<details><summary>The whole page after one run (still picture)</summary>
+
 ![The web interface after one run](thumb.png)
+
+</details>
 
 It runs offline: the embedding model and the chat model are small stand-ins
 written as real LangChain classes, so no API key and no model download is
