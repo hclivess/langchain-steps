@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>langchain-steps · every step, visible</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>langchain-steps</h1>
+    <p>A LangChain RAG chain you can watch. Press a start button: every component reports what it received and what it returned.</p>
+  </div>
+  <dl class="facts">
+    <div><dt>Embeddings</dt><dd id="f-embeddings">…</dd></div>
+    <div><dt>Chat model</dt><dd id="f-model">…</dd></div>
+    <div><dt>Vector store</dt><dd id="f-store">…</dd></div>
+    <div><dt>Documents</dt><dd id="f-docs">0</dd></div>
+    <div><dt>Chunks</dt><dd id="f-chunks">0</dd></div>
+    <div><dt>Playback</dt><dd>
+      <select id="speed" title="The chain itself takes milliseconds. Playback slows the display so you can follow it.">
+        <option value="instant">instant</option>
+        <option value="normal" selected>normal</option>
+        <option value="slow">slow</option>
+      </select></dd></div>
+  </dl>
+</header>
+
+<main>
+<!-- ============================ A: build the index ============================ -->
+<section>
+  <div class="sec-head">
+    <h2><span class="tag">A</span> Build the index</h2>
+    <p>A loader makes Documents, a text splitter cuts them, an embedding model turns the pieces into vectors, a vector store keeps them.</p>
+  </div>
+
+  <form id="ingest-form" class="controls">
+    <label class="grow">Folder with .md / .txt files
+      <input id="folder" type="text" spellcheck="false" autocomplete="off">
+    </label>
+    <label>chunk_size <output id="size-out"></output>
+      <input id="size" type="range" min="100" max="2000" step="20">
+    </label>
+    <label>chunk_overlap <output id="overlap-out"></output>
+      <input id="overlap" type="range" min="0" max="400" step="10">
+    </label>
+    <button class="primary" id="start" type="submit">▶ Start ingest</button>
+    <button id="reset" type="button">Empty the store</button>
+  </form>
+
+  <details class="paste">
+    <summary>Add your own text</summary>
+    <div class="paste-body">
+      <input id="paste-name" type="text" placeholder="name, e.g. my-notes" spellcheck="false">
+      <textarea id="paste-text" rows="5" placeholder="Paste any text. Blank lines separate paragraphs."></textarea>
+      <button id="paste-add" type="button">Add to the list</button>
+    </div>
+  </details>
+
+  <div class="progress" aria-live="polite">
+    <div class="track"><div class="bar" id="ingest-bar"></div></div>
+    <span id="ingest-label">Nothing running. The split card shows a live preview of the selected document.</span>
+  </div>
+
+  <div class="pipe four">
+    <article class="step" id="s-load">
+      <header><span class="num">1</span><h3>Load</h3><span class="status"></span></header>
+      <p class="what">A document loader (<code>BaseLoader</code>) turns each file into a <code>Document</code>: the text in <code>page_content</code>, where it came from in <code>metadata</code>.</p>
+      <div class="live" id="load-live"></div>
+    </article>
+
+    <article class="step" id="s-split">
+      <header><span class="num">2</span><h3>Split</h3><span class="status"></span></header>
+      <p class="what"><code>RecursiveCharacterTextSplitter</code> cuts at blank lines first, then line ends, then spaces, until every piece fits <code>chunk_size</code>.
+        Each chunk repeats the end of the one before (<mark>chunk_overlap</mark>).</p>
+      <div class="live" id="split-live"></div>
+    </article>
+
+    <article class="step" id="s-embed">
+      <header><span class="num">3</span><h3>Embed</h3><span class="status"></span></header>
+      <p class="what">The <code>Embeddings</code> model turns each chunk into a vector. Texts with similar content get similar vectors. Every tile below is one chunk's vector.</p>
+      <div class="live" id="embed-live">
+        <div id="embed-now" class="now"></div>
+        <div id="embed-tiles" class="tiles"></div>
+      </div>
+    </article>
+
+    <article class="step" id="s-store">
+      <header><span class="num">4</span><h3>Store</h3><span class="status"></span></header>
+      <p class="what">One call embeds the chunks and keeps text, metadata and vector under a new id. This store lives in memory: it is rebuilt on every ingest.</p>
+      <div class="live" id="store-live">
+        <pre class="sql">store = InMemoryVectorStore(embeddings)
+ids = store.add_documents(chunks)</pre>
+        <table class="rows"><thead><tr><th>source</th><th>chunks</th><th>first id</th></tr></thead>
+          <tbody id="store-rows"></tbody></table>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============================ B: run the chain ============================ -->
+<section>
+  <div class="sec-head">
+    <h2><span class="tag">B</span> Run the chain</h2>
+    <p>The chain is five components joined with <code>|</code>. Each one's output is the next one's input.</p>
+  </div>
+
+  <form id="ask-form" class="controls">
+    <label class="grow">Question
+      <input id="question" type="text" list="samples" autocomplete="off" value="when is my sourdough starter ready?">
+      <datalist id="samples">
+        <option value="when is my sourdough starter ready?">
+        <option value="what water temperature for coffee">
+        <option value="which plants tolerate low light?">
+        <option value="How much coffee per cup?">
+      </datalist>
+    </label>
+    <label>Chunks to retrieve (k)
+      <input id="k" type="number" min="1" max="20" value="4">
+    </label>
+    <button class="primary" id="ask" type="submit">▶ Run the chain</button>
+  </form>
+
+  <div class="progress" aria-live="polite">
+    <div class="track"><div class="bar" id="ask-bar"></div></div>
+    <span id="ask-label">Nothing running.</span>
+  </div>
+
+  <div class="wide">
+    <div class="panel">
+      <h3>The chain <small>lcsteps/chain.py · the part that is running lights up</small></h3>
+<pre class="code" id="code">chain = (
+    {"context": <span data-card="retrieve">retrieve</span> | <span data-card="format">format_docs</span>, "question": RunnablePassthrough()}
+    | <span data-card="prompt">prompt</span>
+    | <span data-card="model">model</span>
+    | <span data-card="parser">StrOutputParser()</span>
+)
+async for event in chain.astream_events(question, version="v2"):
+    ...   # every line in the event log is one of these</pre>
+    </div>
+    <div class="panel">
+      <h3>Event log <small id="log-count">what the chain itself reports</small></h3>
+      <div class="log" id="log"><p class="empty">Each component emits a start event, stream events while it produces output, and an end event.</p></div>
+    </div>
+  </div>
+
+  <div class="pipe three">
+    <article class="step" id="s-embed_query">
+      <header><span class="num">5</span><h3>Embed the question</h3><span class="status"></span></header>
+      <p class="what">Inside <code>retrieve</code>: the question goes through the same embedding model as the chunks, so they can be compared. Sent to the page as a custom event.</p>
+      <div class="live" id="embed_query-live"></div>
+    </article>
+
+    <article class="step" id="s-retrieve">
+      <header><span class="num">6</span><h3>Retrieve</h3><span class="status"></span></header>
+      <p class="what">The vector store returns the k chunks whose vectors point most nearly the same way as the question's (cosine similarity, 1 = same direction).</p>
+      <div class="live" id="retrieve-live">
+        <pre class="sql">store.similarity_search_with_score_by_vector(vector, k)</pre>
+        <div class="hits"></div>
+      </div>
+    </article>
+
+    <article class="step" id="s-format">
+      <header><span class="num">7</span><h3>Format the documents</h3><span class="status"></span></header>
+      <p class="what">A plain Python function, wrapped as a runnable: it numbers the chunks and joins them into one string, the <code>context</code>.</p>
+      <div class="live" id="format-live"></div>
+    </article>
+
+    <article class="step" id="s-prompt">
+      <header><span class="num">8</span><h3>Prompt template</h3><span class="status"></span></header>
+      <p class="what"><code>ChatPromptTemplate</code> fills its <mark>{slots}</mark> with the context and the question and returns the messages for the model.</p>
+      <div class="live" id="prompt-live"></div>
+    </article>
+
+    <article class="step" id="s-model">
+      <header><span class="num">9</span><h3>Chat model</h3><span class="status"></span></header>
+      <p class="what">The model reads the messages and writes the answer. It streams: each piece arrives as its own event while the model is still working.</p>
+      <div class="live" id="model-live"></div>
+    </article>
+
+    <article class="step" id="s-parser">
+      <header><span class="num">10</span><h3>Output parser</h3><span class="status"></span></header>
+      <p class="what"><code>StrOutputParser</code> takes the text out of the model's message object. What it returns is what the chain returns.</p>
+      <div class="live" id="parser-live"></div>
+    </article>
+  </div>
+</section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

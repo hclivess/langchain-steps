@@ -1,0 +1,12 @@
+fastapi>=0.110
+uvicorn>=0.29
+langchain>=1.0
+langchain-text-splitters>=1.0
+
+# Only to run the tests (fastapi's TestClient):
+# httpx
+
+# Only for a real model instead of the offline stand-ins (see README):
+# langchain-anthropic
+# langchain-openai
+# langchain-ollama
