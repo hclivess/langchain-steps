@@ -2,6 +2,7 @@ fastapi>=0.110
 uvicorn>=0.29
 langchain>=1.0
 langchain-text-splitters>=1.0
+numpy                    # the in-memory vector store's cosine similarity needs it
 
 # Only to run the tests (fastapi's TestClient):
 # httpx
